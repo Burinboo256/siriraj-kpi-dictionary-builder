@@ -12,6 +12,19 @@ Python tool for generating a formal Thai/English KPI Dictionary document from Ex
 
 The layout is designed to resemble a hospital KPI manual / THIP-style reference document.
 
+## Repository
+
+GitHub repository:
+
+`https://github.com/Burinboo256/siriraj-kpi-dictionary-builder.git`
+
+Clone the project with:
+
+```bash
+git clone https://github.com/Burinboo256/siriraj-kpi-dictionary-builder.git
+cd siriraj-kpi-dictionary-builder
+```
+
 ## Folder Structure
 
 ```text
@@ -119,6 +132,20 @@ cd docx_kpi_dictionary_codex
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+## Quick Start
+
+Create a local working workbook from the tracked example:
+
+```bash
+cp input/kpi_dictionary_template.example.xlsx input/kpi_dictionary_template.xlsx
+```
+
+Then generate the Word document:
+
+```bash
+python3 src/generate_document.py input/kpi_dictionary_template.xlsx --output output/KPI_Dictionary.docx --validation-report output/validation_report.xlsx
 ```
 
 ## Usage
