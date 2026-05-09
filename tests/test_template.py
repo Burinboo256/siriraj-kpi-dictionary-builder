@@ -65,8 +65,8 @@ class TemplateGenerationTests(unittest.TestCase):
             self.assertGreater(len(input_sheet.data_validations.dataValidation), 0)
 
             required_fill = "00FFF2CC"
-            optional_fill = input_sheet["M1"].fill.fill_type
-            for coordinate in ("A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1", "I1", "J1", "K1", "L1"):
+            optional_fill = input_sheet["E1"].fill.fill_type
+            for coordinate in ("A1", "B1", "C1", "D1", "F1", "H1", "I1", "J1"):
                 self.assertEqual(input_sheet[coordinate].fill.fgColor.rgb, required_fill)
             self.assertIsNone(optional_fill)
 

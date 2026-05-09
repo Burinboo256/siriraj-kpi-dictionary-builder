@@ -28,17 +28,28 @@ REQUIRED_FIELDS = {
     "KPI_Name_TH": "Missing required fields",
     "KPI_Category": "Missing required fields",
     "KPI_Type": "Missing required fields",
-    "KPI_Name_EN": "Missing required fields",
     "Definition_TH": "Missing required fields",
-    "Objective_TH": "Missing required fields",
     "Formula": "Missing required fields",
     "Numerator_Definition": "Missing required fields",
     "Denominator_Definition": "Missing required fields",
-    "Numerator_CodeSet": "Missing required fields",
-    "Denominator_CodeSet": "Missing required fields",
 }
 
 GOOGLE_SHEET_ID_PATTERN = re.compile(r"/spreadsheets/d/([a-zA-Z0-9-_]+)")
+CRITICAL_ISSUE_TYPES = {"Missing required fields", "Missing formula"}
+VALIDATION_FIELD_LABELS = {
+    "KPI_Category": "หมวดตัวชี้วัด",
+    "KPI_Type": "ประเภทตัวชี้วัด",
+    "KPI_Code": "รหัสตัวชี้วัด",
+    "KPI_Name_TH": "ชื่อตัวชี้วัด (ภาษาไทย)",
+    "KPI_Name_EN": "ชื่อตัวชี้วัด (ภาษาอังกฤษ)",
+    "Definition_TH": "นิยาม คำอธิบาย ความหมายของตัวชี้วัด",
+    "Objective_TH": "วัตถุประสงค์ของตัวชี้วัด",
+    "Formula": "สูตรในการคำนวณ",
+    "Numerator_Definition": "ข้อมูลที่ต้องการ: ตัวตั้ง",
+    "Denominator_Definition": "ข้อมูลที่ต้องการ: ตัวหาร",
+    "Numerator_CodeSet": "รหัสโรค/หัตถการที่เกี่ยวข้อง: ตัวตั้ง",
+    "Denominator_CodeSet": "รหัสโรค/หัตถการที่เกี่ยวข้อง: ตัวหาร",
+}
 
 
 @dataclass
@@ -280,7 +291,7 @@ def load_kpi_dataset(workbook_path: Path) -> KPIDataset:
 
     input_rows = load_sheet_records(workbook_path, "kpi_input_form")
     master_rows = load_sheet_records(workbook_path, "kpi_master")
-    code_counts = Counter(row.get("KPI_Code", "") for row in input_rows + master_rows if row.get("KPI_Code"))
+    code_counts = Counter(row.get("KPI_Code", "") for row in input_rows if row.get("KPI_Code"))
     return KPIDataset(
         records=_merge_kpi_records(workbook_path),
         config=load_config(workbook_path),
@@ -356,6 +367,47 @@ def build_validation_issues(dataset: KPIDataset) -> list[dict[str, str]]:
             issues.append(_issue("Related KPI code not found in KPI_Master", kpi_code, "Related_KPI_Code", f"{related_code} was not found", SHEET_NAMES["kpi_master"]))
 
     return issues
+
+
+def build_kpi_validation_summaries(
+    records: list[dict[str, str]],
+    issues: list[dict[str, str]],
+) -> dict[str, dict[str, str | list[str]]]:
+    issues_by_code: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for issue in issues:
+        kpi_code = issue.get("KPI_Code", "")
+        if kpi_code:
+            issues_by_code[kpi_code].append(issue)
+
+    summaries: dict[str, dict[str, str | list[str]]] = {}
+    for record in records:
+        kpi_code = record.get("KPI_Code", "")
+        record_issues = issues_by_code.get(kpi_code, [])
+        critical = [issue for issue in record_issues if issue.get("Issue_Type") in CRITICAL_ISSUE_TYPES]
+
+        if critical:
+            status = "Incomplete"
+        else:
+            status = "Complete"
+
+        summary_parts: list[str] = []
+        if critical:
+            critical_fields = ", ".join(
+                VALIDATION_FIELD_LABELS.get(issue.get("Field_Name", ""), issue.get("Field_Name", ""))
+                for issue in critical
+                if issue.get("Field_Name")
+            )
+            summary_parts.append(f"ขาดข้อมูล: {critical_fields}")
+        if not summary_parts:
+            summary_parts.append("ข้อมูล required ครบถ้วน")
+
+        summaries[kpi_code] = {
+            "status": status,
+            "summary": "\n".join(summary_parts),
+            "critical_fields": [issue.get("Field_Name", "") for issue in critical if issue.get("Field_Name")],
+            "warning_fields": [],
+        }
+    return summaries
 
 
 def generate_validation_report(output_path: Path, issues: list[dict[str, str]]) -> Path:

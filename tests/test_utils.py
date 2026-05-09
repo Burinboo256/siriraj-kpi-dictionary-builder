@@ -11,6 +11,7 @@ from openpyxl import Workbook
 from src.generate_template import DEFAULT_CONFIG, SHEET_NAMES, create_template_workbook
 from src.utils import (
     build_index_sections,
+    build_kpi_validation_summaries,
     build_validation_issues,
     download_google_sheet_workbook,
     generate_validation_report,
@@ -186,13 +187,14 @@ class UtilsTests(unittest.TestCase):
             create_template_workbook(template_path)
 
             workbook = load_workbook(template_path)
-            master_sheet = workbook[SHEET_NAMES["kpi_master"]]
             input_sheet = workbook[SHEET_NAMES["kpi_input_form"]]
 
-            master_sheet.append([cell.value for cell in master_sheet[2]])
-            master_sheet["C5"] = "DH0101"
+            input_sheet.append([cell.value for cell in input_sheet[2]])
+            input_sheet["C5"] = "DH0101"
             input_sheet["H2"] = ""
+            input_sheet["H5"] = ""
             input_sheet["M2"] = "InvalidFrequency"
+            input_sheet["M5"] = "InvalidFrequency"
             workbook.save(template_path)
 
             dataset = load_kpi_dataset(template_path)
@@ -205,6 +207,25 @@ class UtilsTests(unittest.TestCase):
             self.assertIn("Invalid dropdown values", issue_types)
             self.assertIn("Missing required fields", issue_types)
             self.assertTrue(report_path.exists())
+
+    def test_build_kpi_validation_summaries_classifies_complete_incomplete_and_needs_review(self) -> None:
+        records = [
+            {"KPI_Code": "A001"},
+            {"KPI_Code": "A002"},
+            {"KPI_Code": "A003"},
+        ]
+        issues = [
+            {"Issue_Type": "Missing required fields", "KPI_Code": "A002", "Field_Name": "KPI_Name_EN", "Message": "KPI_Name_EN is required", "Sheet_Name": "04_KPI_Master"},
+            {"Issue_Type": "Invalid dropdown values", "KPI_Code": "A003", "Field_Name": "KPI_Category", "Message": "bad value", "Sheet_Name": "02_KPI_Input_Form"},
+        ]
+
+        summaries = build_kpi_validation_summaries(records, issues)
+
+        self.assertEqual(summaries["A001"]["status"], "Complete")
+        self.assertEqual(summaries["A002"]["status"], "Incomplete")
+        self.assertEqual(summaries["A003"]["status"], "Complete")
+        self.assertIn("ชื่อตัวชี้วัด (ภาษาอังกฤษ)", summaries["A002"]["summary"])
+        self.assertEqual(summaries["A003"]["summary"], "ข้อมูล required ครบถ้วน")
 
     def test_resolve_workbook_source_accepts_google_sheet_url(self) -> None:
         source = "https://docs.google.com/spreadsheets/d/1s6LB0a_j4k-RhBTKAfZwQVDda25xzgmbGFDTLRC1LvM/edit?usp=sharing"

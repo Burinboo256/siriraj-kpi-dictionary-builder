@@ -22,7 +22,7 @@ SHEET_NAMES = {
     "config": "11_Config",
 }
 
-REQUIRED_INPUT_HEADERS = [
+INPUT_FORM_HEADERS = [
     "KPI_Category",
     "KPI_Type",
     "KPI_Code",
@@ -35,9 +35,33 @@ REQUIRED_INPUT_HEADERS = [
     "Denominator_Definition",
     "Numerator_CodeSet",
     "Denominator_CodeSet",
+    "Frequency",
+    "Benchmark",
+    "Interpretation_TH",
+    "Reference_Team",
+    "Data_Source",
+    "Effective_Date",
+    "Last_Update_Date",
+    "Revision_Reason",
+    "Note",
+]
+
+REQUIRED_INPUT_HEADERS = [
+    "KPI_Category",
+    "KPI_Type",
+    "KPI_Code",
+    "KPI_Name_TH",
+    "Definition_TH",
+    "Formula",
+    "Numerator_Definition",
+    "Denominator_Definition",
 ]
 
 OPTIONAL_INPUT_HEADERS = [
+    "KPI_Name_EN",
+    "Objective_TH",
+    "Numerator_CodeSet",
+    "Denominator_CodeSet",
     "Frequency",
     "Benchmark",
     "Interpretation_TH",
@@ -51,7 +75,7 @@ OPTIONAL_INPUT_HEADERS = [
 
 TEMPLATE_HEADERS = {
     "Instruction": ["Section", "Detail"],
-    "KPI_Input_Form": REQUIRED_INPUT_HEADERS + OPTIONAL_INPUT_HEADERS,
+    "KPI_Input_Form": INPUT_FORM_HEADERS,
     "KPI_Input_Dictionary": ["Column_Name", "Display_Name_TH", "Required", "Description", "Example", "Allowed_Values"],
     "KPI_Master": [
         "KPI_Category",

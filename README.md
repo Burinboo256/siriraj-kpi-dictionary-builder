@@ -75,8 +75,8 @@ cp input/kpi_dictionary_template.example.xlsx input/kpi_dictionary_template.xlsx
 
 ชีต input ถูกออกแบบตามหน้า KPI detail โดยตรง และเก็บเฉพาะข้อมูลที่จำเป็นต่อการสร้างเอกสาร:
 
-- ช่อง required ถูก highlight ไว้สำหรับ category, type, code, ชื่อไทย/อังกฤษ, definition, objective, formula, numerator, denominator และ related code sets
-- ช่อง optional ไม่ถูก highlight เช่น frequency, benchmark, interpretation, team/reference, data source, version dates, revision reason และ note
+- ช่อง required ถูก highlight ไว้สำหรับ category, type, code, ชื่อไทย, definition, formula, numerator และ denominator
+- ช่อง optional ไม่ถูก highlight เช่น ชื่อภาษาอังกฤษ, วัตถุประสงค์, code set ที่เกี่ยวข้อง, frequency, benchmark, interpretation, team/reference, data source, version dates, revision reason และ note
 - มีชีต dictionary ประกอบสำหรับอธิบายคอลัมน์ทั้งหมดของชีต input
 - มี dropdown validation สำหรับ category, type และ frequency ในชีตที่ผู้ใช้กรอก
 
@@ -176,8 +176,11 @@ python3 src/generate_document.py input/kpi_dictionary_template.xlsx --output out
 - ดัชนีค้นหาตาม reference team
 - ดัชนีค้นหาตาม ICD / procedure code
 - หน้า KPI detail สำหรับแต่ละ KPI ตามรูปแบบ reference section
-- แถวข้อมูล required เช่น category, type, code, ชื่อไทย/อังกฤษ, definition, objective, formula, numerator, denominator และ related code sets
+- แถวข้อมูล required เช่น category, type, code, ชื่อไทย, definition, formula, numerator และ denominator
 - แถวข้อมูล optional เช่น frequency, benchmark, interpretation, team/reference, effective date, last update, revision reason และ note
+- แถว `Data Completeness` ท้ายตารางของแต่ละ KPI โดยอิงเฉพาะ required fields
+- แถว `Validation Summary` ท้ายตารางของแต่ละ KPI โดยแสดงชื่อ field เป็นภาษาไทยตาม label ในเอกสาร
+- หน้า `Data Completeness Summary` เป็นหน้าสุดท้ายของเอกสาร เพื่อสรุปสถานะของทุก KPI ในภาพรวม
 - footer ที่มี version ของเอกสารและเลขหน้า
 
 validation report จะตรวจเรื่อง:
@@ -225,9 +228,9 @@ python3 src/generate_document.py input/kpi_dictionary_template.xlsx --output out
 ## รายละเอียดการทำงานภายใน
 
 - `src/generate_template.py`: สร้าง Excel template แบบ KPI detail-first พร้อม required-field highlighting
-- `src/utils.py`: จัดการ source ของ workbook, รวมข้อมูลจากชีตที่เกี่ยวข้อง และสร้าง validation findings
+- `src/utils.py`: จัดการ source ของ workbook, รวมข้อมูลจากชีตที่เกี่ยวข้อง, สร้าง validation findings และสรุปสถานะ Data Completeness ต่อ KPI
 - `src/styles.py`: helper สำหรับ formatting เอกสาร เช่น border, shading, TOC และ page number
-- `src/generate_document.py`: สร้างไฟล์ `.docx`, search indexes และ KPI detail tables
+- `src/generate_document.py`: สร้างไฟล์ `.docx`, search indexes, KPI detail tables และหน้า Data Completeness Summary ท้ายเอกสาร
 
 ## หมายเหตุเรื่อง PDF
 

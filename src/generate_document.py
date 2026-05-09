@@ -12,7 +12,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, RGBColor
 
 from src.styles import (
     LIGHT_GREY,
@@ -27,6 +27,7 @@ from src.styles import (
 )
 from src.utils import (
     build_index_sections,
+    build_kpi_validation_summaries,
     build_validation_issues,
     generate_validation_report,
     load_kpi_dataset,
@@ -114,6 +115,11 @@ OPTIONAL_DETAIL_FIELDS = [
     ("เหตุผลของการปรับปรุง", "Revision_Reason", None),
     ("หมายเหตุ", "Note", None),
 ]
+
+COMPLETE_GREEN = RGBColor(46, 125, 50)
+INCOMPLETE_RED = RGBColor(198, 40, 40)
+COMPLETE_GREEN_FILL = "E2F0D9"
+INCOMPLETE_RED_FILL = "FDE9E7"
 
 
 def _ensure_heading_styles(document: Document, font_th: str, font_en: str) -> None:
@@ -348,7 +354,12 @@ def _add_reference_style_detail_table(document: Document, config: dict[str, str]
     _format_table_fonts(table, config.get("Font_TH", "TH Sarabun New"), config.get("Font_EN", "Arial"), bold_first_column=True)
 
 
-def _add_kpi_detail_page(document: Document, config: dict[str, str], record: dict[str, str]) -> None:
+def _add_kpi_detail_page(
+    document: Document,
+    config: dict[str, str],
+    record: dict[str, str],
+    validation_summary: dict[str, str | list[str]],
+) -> None:
     document.add_page_break()
 
     code_line = document.add_paragraph()
@@ -364,6 +375,77 @@ def _add_kpi_detail_page(document: Document, config: dict[str, str], record: dic
     _set_paragraph_font(type_line, config.get("Font_TH", "TH Sarabun New"), config.get("Font_EN", "Arial"), size=11)
 
     _add_reference_style_detail_table(document, config, record)
+    summary_table = document.tables[-1]
+    row = summary_table.add_row().cells
+    row[0].text = "Data Completeness"
+    row[1].text = str(validation_summary["status"])
+    set_cell_shading(row[0], VERY_LIGHT_GREY)
+    set_cell_shading(row[1], COMPLETE_GREEN_FILL if validation_summary["status"] == "Complete" else INCOMPLETE_RED_FILL)
+    for paragraph in row[1].paragraphs:
+        for run in paragraph.runs:
+            _set_run_fonts(run, config.get("Font_TH", "TH Sarabun New"), config.get("Font_EN", "Arial"), size=11, bold=True)
+            run.font.color.rgb = COMPLETE_GREEN if validation_summary["status"] == "Complete" else INCOMPLETE_RED
+
+    row = summary_table.add_row().cells
+    row[0].text = "Validation Summary"
+    row[1].text = str(validation_summary["summary"])
+    set_cell_shading(row[0], VERY_LIGHT_GREY)
+    _format_table_fonts(summary_table, config.get("Font_TH", "TH Sarabun New"), config.get("Font_EN", "Arial"), bold_first_column=True)
+
+
+def _add_data_completeness_summary_page(
+    document: Document,
+    config: dict[str, str],
+    records: list[dict[str, str]],
+    validation_summaries: dict[str, dict[str, str | list[str]]],
+) -> None:
+    document.add_page_break()
+
+    heading = document.add_paragraph("Data Completeness Summary", style="Heading 1")
+    add_horizontal_rule(heading)
+
+    total = len(records)
+    complete = sum(1 for record in records if validation_summaries.get(record.get("KPI_Code", ""), {}).get("status") == "Complete")
+    incomplete = total - complete
+
+    summary_line = document.add_paragraph()
+    parts = [
+        ("Total KPI: ", PRIMARY_BLUE),
+        (str(total), PRIMARY_BLUE),
+        ("   Complete: ", COMPLETE_GREEN),
+        (str(complete), COMPLETE_GREEN),
+        ("   Incomplete: ", INCOMPLETE_RED),
+        (str(incomplete), INCOMPLETE_RED),
+    ]
+    for text, color in parts:
+        run = summary_line.add_run(text)
+        _set_run_fonts(run, config.get("Font_TH", "TH Sarabun New"), config.get("Font_EN", "Arial"), size=11, bold=True)
+        run.font.color.rgb = color
+
+    table = document.add_table(rows=1, cols=4)
+    table.style = "Table Grid"
+    set_table_borders(table)
+    headers = ["KPI Code", "KPI Name TH", "Data Completeness", "Validation Summary"]
+    for cell, label in zip(table.rows[0].cells, headers, strict=False):
+        cell.text = label
+        set_cell_shading(cell, LIGHT_GREY)
+        cell.paragraphs[0].runs[0].bold = True
+
+    for record in records:
+        summary = validation_summaries.get(record.get("KPI_Code", ""), {"status": "Complete", "summary": "ข้อมูล required ครบถ้วน"})
+        row = table.add_row().cells
+        row[0].text = record.get("KPI_Code", "")
+        row[1].text = record.get("KPI_Name_TH", "")
+        row[2].text = str(summary["status"])
+        row[3].text = str(summary["summary"])
+        fill = COMPLETE_GREEN_FILL if summary["status"] == "Complete" else INCOMPLETE_RED_FILL
+        set_cell_shading(row[2], fill)
+        for paragraph in row[2].paragraphs:
+            for run in paragraph.runs:
+                _set_run_fonts(run, config.get("Font_TH", "TH Sarabun New"), config.get("Font_EN", "Arial"), size=11, bold=True)
+                run.font.color.rgb = COMPLETE_GREEN if summary["status"] == "Complete" else INCOMPLETE_RED
+
+    _format_table_fonts(table, config.get("Font_TH", "TH Sarabun New"), config.get("Font_EN", "Arial"))
 
 
 def _configure_footer(document: Document, config: dict[str, str]) -> None:
@@ -400,6 +482,7 @@ def generate_kpi_dictionary(
 
     dataset = load_kpi_dataset(resolved_workbook_path)
     issues = build_validation_issues(dataset)
+    validation_summaries = build_kpi_validation_summaries(dataset.records, issues)
     if validation_report_path is not None:
         generate_validation_report(validation_report_path, issues)
 
@@ -412,7 +495,8 @@ def generate_kpi_dictionary(
     _add_toc_page(document, config)
     _add_all_index_pages(document, config, dataset.records)
     for record in dataset.records:
-        _add_kpi_detail_page(document, config, record)
+        _add_kpi_detail_page(document, config, record, validation_summaries.get(record.get("KPI_Code", ""), {"status": "Complete", "summary": ""}))
+    _add_data_completeness_summary_page(document, config, dataset.records, validation_summaries)
     _configure_footer(document, config)
 
     document.save(output_path)
